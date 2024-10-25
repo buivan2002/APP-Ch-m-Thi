@@ -3,9 +3,11 @@ const http = require('http');
 const socketIO = require('socket.io');
 const ioClient = require('socket.io-client');
 const path = require('path');
+const cors = require('cors');
 
 // Tạo ứng dụng Express
 const app = express();
+app.use(cors());
 const server = http.createServer(app);
 const io = socketIO(server);
 
@@ -22,7 +24,6 @@ pythonSocket.on('camera_response', (data) => {
     console.log('Nhận được dữ liệu từ server Python:', data);
 
     // Phát dữ liệu này tới client đang kết nối
-    io.emit('camera_response', data);
 });
 
 // Xử lý khi mất kết nối với Python server
@@ -31,13 +32,13 @@ pythonSocket.on('disconnect', () => {
 });
 
 // Xử lý kết nối từ client
-io.on('connection', (socket) => {
+io.on('connect', (socket) => {
     console.log(`Client đã kết nối: ${socket.id}`);
 
     // Lắng nghe yêu cầu từ client
-    socket.on('request_camera', () => {
+    socket.on('request_camera', (data) => {
         console.log('Nhận được yêu cầu từ client');
-        pythonSocket.emit('request_camera', { message: 'Yêu cầu dữ liệu camera từ Node.js' });
+        pythonSocket.emit('request_camera', { message: data });
     });
 
     // Xử lý khi client ngắt kết nối
@@ -53,5 +54,5 @@ app.get('/', (req, res) => {
 
 // Khởi động server
 server.listen(3001, () => {
-    console.log('Server đang lắng nghe ở cổng 3001');
+    console.log('Server đang lắng nghe ở cổng 3000');
 });

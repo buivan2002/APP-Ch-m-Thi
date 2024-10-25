@@ -1,72 +1,72 @@
-import React, { useEffect, useState } from 'react';
-import { Button, View, Text, StyleSheet } from 'react-native';
-import { Camera, CameraView } from 'expo-camera';
-import io from 'socket.io-client';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, StyleSheet } from 'react-native';
+import { CameraView, Camera } from 'expo-camera';
+import socket from '../ulti/socketio';
 
-export default function CameraScreen() {
+const CameraScreen = () => {
   const [hasPermission, setHasPermission] = useState(true);
-  const [cameraOpen, setCameraOpen] = useState(false);
-  const [cameraResponse, setCameraResponse] = useState(null);
-  
-  // Kết nối tới Node.js server qua Socket.IO
-  const socket = io('http://localhost:3001');
-  
+  const cameraRef = useRef(null);
+  const [counter, setCounter] = useState(0);
+  const [isCapturing, setIsCapturing] = useState(false);
+
   useEffect(() => {
-    (async () => {
+    const initialize = async () => {
+      // Khởi tạo socket
+      socket.initializeSocket();
+
+      // Xin quyền truy cập camera
       const { status } = await Camera.requestCameraPermissionsAsync();
       setHasPermission(status === 'granted');
-    })();
-    
-    // Lắng nghe sự kiện 'camera_response' từ Node.js server
-    socket.on('camera_response', (data) => {
-      console.log('Nhận dữ liệu từ server:', data);
-      setCameraResponse(data);
-    });
 
-    return () => {
-      socket.disconnect();
+      // Thiết lập interval chụp ảnh nếu có quyền
+      if (status === 'granted') {
+        setIsCapturing(true);
+        const interval = setInterval(async () => {
+          setCounter(prevCounter => prevCounter + 1);
+
+          if (cameraRef.current) {
+            try {
+              const photoData =  cameraRef.current.takePictureAsync({ base64: true });
+              socket.emit('request_camera', photoData);
+            } catch (error) {
+              console.error('Lỗi chụp ảnh:', error);
+            }
+          }
+        }, 10); // 10 tấm/giây
+
+        // Dọn dẹp interval khi component unmount hoặc không còn cần thiết
+        return () => {
+          clearInterval(interval);
+          socket.socket && socket.socket.disconnect(); // Ngắt kết nối khi component unmount
+        };
+      }
     };
-  }, []);
 
-  const openCamera = () => {
-    setCameraOpen(true);
-    socket.on('connection', () => {
-      console.log('Kết nối thành công đến server Node.js');
-  });
-    // Gửi yêu cầu tới Node.js server khi mở camera
-    socket.emit('request_camera');
-  };
+    initialize();
+  }, []); // Chạy chỉ một lần khi component mount
 
   if (hasPermission === null) {
     return <View />;
   }
-
   if (hasPermission === false) {
     return <Text>No access to camera</Text>;
   }
 
   return (
     <View style={styles.container}>
-      {cameraOpen ? (
-        <CameraView style={styles.camera} />
-      ) : (
-        <Button title="Open Camera" onPress={openCamera} />
-      )}
-      {cameraResponse && (
-        <Text>Response from Python: {cameraResponse.message}</Text>
-      )}
+      <CameraView style={styles.camera} ref={cameraRef} />
     </View>
   );
-}
+};
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   camera: {
     flex: 1,
     width: '100%',
   },
 });
+
+export default CameraScreen;

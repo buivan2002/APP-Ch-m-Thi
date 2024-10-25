@@ -12,6 +12,7 @@ import AnswerScreen from '../review/detail';
 import AppHeader from './appHeader';
 import CameraScreen from '../../type/camera';
 import Camera from '../review/camera2';
+import connected from '../../type/connected';
 
 // HomeLayout nhận navigation và route từ Tab.Screen mà không cần khai báo kiểu
 const HomeLayout = ({ navigation, route }: any) => { // Thay { navigation, route }: HomeLayoutProps thành any
@@ -85,7 +86,8 @@ const AppNavigation = () => {
           ),
           title: 'Cài Đặt',
         }}
-      />
+      /> 
+   
     </Tab.Navigator>
   );
 };
