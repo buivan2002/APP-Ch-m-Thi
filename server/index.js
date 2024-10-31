@@ -9,8 +9,12 @@ const cors = require('cors');
 const app = express();
 app.use(cors());
 const server = http.createServer(app);
-const io = socketIO(server);
-
+const io = socketIO(server, {
+    cors: {
+      origin: '*', // Cho phép tất cả các nguồn, bạn có thể tùy chỉnh theo nhu cầu
+    },
+    maxHttpBufferSize: 100 * 1024 * 1024 // Đặt kích thước tối đa là 2 MB (2 * 1024 * 1024 bytes)
+  });
 // Kết nối tới Python server qua Socket.IO client
 const pythonSocket = ioClient('http://127.0.0.1:8000');
 
@@ -20,9 +24,11 @@ pythonSocket.on('connect', () => {
 });
 
 // Lắng nghe phản hồi từ Python server
-pythonSocket.on('camera_response', (data) => {
-    console.log('Nhận được dữ liệu từ server Python:', data);
+pythonSocket.on('send_image', (data) => {
+    console.log('Nhận ảnh từ Python');
 
+    // Gửi lại ảnh cho React Native
+    io.emit('receive_image', data);
     // Phát dữ liệu này tới client đang kết nối
 });
 
@@ -37,8 +43,8 @@ io.on('connect', (socket) => {
 
     // Lắng nghe yêu cầu từ client
     socket.on('request_camera', (data) => {
-        console.log('Nhận được yêu cầu từ client');
-        pythonSocket.emit('request_camera', { message: data });
+        console.log('Nhận được yêu cầu từ client', data.length);
+        pythonSocket.emit('request_camera', data); // Gửi dữ liệu với tên sự kiện là 'request_camera'
     });
 
     // Xử lý khi client ngắt kết nối

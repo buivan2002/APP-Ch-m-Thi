@@ -15,7 +15,7 @@ const AppHeader = () => {
       <Text style={styles.headerText}>Điền đáp án</Text>
       {/* Nút mở Camera */}
       <Button 
-        title="Open Camera" 
+        title="Camera" 
         onPress={() => navigation.navigate("camera")} 
       />
     </View>

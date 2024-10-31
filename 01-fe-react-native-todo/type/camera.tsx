@@ -1,49 +1,74 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import { CameraView, Camera } from 'expo-camera';
-import socket from '../ulti/socketio';
+import { View, Text, StyleSheet, Button, Image } from 'react-native';
+import { Camera, CameraView } from 'expo-camera';
+import * as ImageManipulator from 'expo-image-manipulator';
+import socket from '../ulti/socketio'; // Đảm bảo bạn có file socketio.js
+import { NavigationProp, RouteProp, getFocusedRouteNameFromRoute, useNavigation } from '@react-navigation/native';
 
 const CameraScreen = () => {
+  const navigation: NavigationProp<any> = useNavigation();
+
   const [hasPermission, setHasPermission] = useState(true);
   const cameraRef = useRef(null);
-  const [counter, setCounter] = useState(0);
-  const [isCapturing, setIsCapturing] = useState(false);
+  const [isCameraReady, setIsCameraReady] = useState(false);
+  const [receivedImage, setReceivedImage] = useState(null); // Lưu URI của ảnh nhận được
 
   useEffect(() => {
-    const initialize = async () => {
-      // Khởi tạo socket
-      socket.initializeSocket();
+    const initializeSocket = async () => {
+      await socket.initializeSocket();
 
-      // Xin quyền truy cập camera
+      // Lắng nghe sự kiện receive_image từ server
+     
+    };
+   
+    initializeSocket();
+    socket.on('receive_image', (data) => {
+      // Navigate to ImageScreen and pass the base64 image data as a param
+      navigation.navigate('Image', { imageData: data });
+    }); 
+    const requestCameraPermission = async () => {
       const { status } = await Camera.requestCameraPermissionsAsync();
       setHasPermission(status === 'granted');
-
-      // Thiết lập interval chụp ảnh nếu có quyền
-      if (status === 'granted') {
-        setIsCapturing(true);
-        const interval = setInterval(async () => {
-          setCounter(prevCounter => prevCounter + 1);
-
-          if (cameraRef.current) {
-            try {
-              const photoData =  cameraRef.current.takePictureAsync({ base64: true });
-              socket.emit('request_camera', photoData);
-            } catch (error) {
-              console.error('Lỗi chụp ảnh:', error);
-            }
-          }
-        }, 10); // 10 tấm/giây
-
-        // Dọn dẹp interval khi component unmount hoặc không còn cần thiết
-        return () => {
-          clearInterval(interval);
-          socket.socket && socket.socket.disconnect(); // Ngắt kết nối khi component unmount
-        };
-      }
     };
 
-    initialize();
-  }, []); // Chạy chỉ một lần khi component mount
+    requestCameraPermission();
+  }, []);
+
+  const onCameraReady = () => {
+    setIsCameraReady(true);
+  };
+
+  const captureAndSend = async () => {
+    if (!isCameraReady) {
+      console.log("Camera is not ready yet.");
+      return;
+    }
+    try {
+      const photoData = await cameraRef.current.takePictureAsync({ base64: false });
+      console.log('Original image URI:', photoData.uri);
+
+      // Nén ảnh
+      const resizedImage = await ImageManipulator.manipulateAsync(
+        photoData.uri,
+        [{ resize: { width: 920, height: 1313 } }],
+        { compress: 0.5, format: ImageManipulator.SaveFormat.JPEG }
+      );
+
+      const compressedBase64Data = await fetch(resizedImage.uri)
+        .then(res => res.blob())
+        .then(blob => new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result.split(',')[1]);
+          reader.readAsDataURL(blob);
+        }));
+
+      if (socket) {
+        socket.emit('request_camera', compressedBase64Data);
+      }
+    } catch (error) {
+      console.error('Error capturing or resizing photo:', error);
+    }
+  };
 
   if (hasPermission === null) {
     return <View />;
@@ -51,10 +76,13 @@ const CameraScreen = () => {
   if (hasPermission === false) {
     return <Text>No access to camera</Text>;
   }
-
   return (
     <View style={styles.container}>
-      <CameraView style={styles.camera} ref={cameraRef} />
+      <CameraView style={styles.camera} ref={cameraRef} onCameraReady={onCameraReady} />
+      <Button title="Take Picture" onPress={captureAndSend} />
+      {receivedImage && (
+        <Image source={{ uri: receivedImage }} style={styles.image} />
+      )}
     </View>
   );
 };
@@ -66,6 +94,12 @@ const styles = StyleSheet.create({
   camera: {
     flex: 1,
     width: '100%',
+  },
+  image: {
+    width: 200,
+    height: 200,
+    marginTop: 20,
+    alignSelf: 'center',
   },
 });
 

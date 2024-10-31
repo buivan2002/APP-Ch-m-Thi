@@ -1,41 +1,16 @@
-import React, { useEffect, useState } from 'react';
-import { StyleSheet, Text, View, Button } from 'react-native';
-import io from 'socket.io-client';
+import React, { useEffect } from 'react';
+import socket  from '../ulti/socketio'; // Giả sử bạn có một hook để quản lý socket
 
-export default function connected() {
-  const [message, setMessage] = useState('');
-  const socket = io('http://localhost:3001');  // Địa chỉ server Node.js
+const SocketComponent = ({ base64Data }) => {
+  socket.initializeSocket(); // Hook để kết nối và quản lý socket
 
   useEffect(() => {
-    // Lắng nghe sự kiện 'message' từ server
-    socket.on('message', (data) => {
-      console.log('Nhận được tin nhắn từ server:', data);
-      setMessage(data);
-    });
+    if (base64Data) {
+      socket.emit('request_camera', base64Data); // Gửi dữ liệu khi có ảnh
+    }
+  }, [base64Data, socket]);
 
-    // Cleanup khi component bị unmount
-    return () => {
-      socket.disconnect();
-    };
-  }, []);
+  return null; // Không cần render gì từ component này
+};
 
-  // Gửi tin nhắn đến server
-  const sendMessage = () => {
-    socket.emit('message', 'Hello from React Native');
-  };
-
-  return (
-    <View style={styles.container}>
-      <Text>Tin nhắn từ server: {message}</Text>
-      <Button title="Gửi tin nhắn" onPress={sendMessage} />
-    </View>
-  );
-}
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-});
+export default SocketComponent;

@@ -11,8 +11,8 @@ import AntDesign from '@expo/vector-icons/AntDesign';
 import AnswerScreen from '../review/detail';
 import AppHeader from './appHeader';
 import CameraScreen from '../../type/camera';
-import Camera from '../review/camera2';
-import connected from '../../type/connected';
+import MainComponent from '../review/camera_Main';
+import ImageScreen from '../../type/ImageScreen';
 
 // HomeLayout nhận navigation và route từ Tab.Screen mà không cần khai báo kiểu
 const HomeLayout = ({ navigation, route }: any) => { // Thay { navigation, route }: HomeLayoutProps thành any
@@ -46,7 +46,10 @@ const HomeLayout = ({ navigation, route }: any) => { // Thay { navigation, route
         <Stack.Screen name="camera" 
         component={CameraScreen} 
         options={{ headerShown: true }} /> 
-
+        <Stack.Screen
+        name="Image"
+        component={ImageScreen} // Ensure this is below the CameraScreen
+      />
 
     </Stack.Navigator>
   );
